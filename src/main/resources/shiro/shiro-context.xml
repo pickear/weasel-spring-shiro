@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xmlns:aop="http://www.springframework.org/schema/aop"
+     xmlns:tx="http://www.springframework.org/schema/tx"
+     xmlns:util="http://www.springframework.org/schema/util"
+     xmlns:context="http://www.springframework.org/schema/context"
+     xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+     					 http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-3.0.xsd
+     				     http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-3.0.xsd
+     					 http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.0.xsd
+    				     http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util.xsd" >
+    
+	<context:property-placeholder location="classpath*:/shiro/security.properties" ignore-unresolvable="true"/>
+	
+	<bean id="anyRolesAuthorizationFilter" class="com.fantian.security.shiro.filters.AnyRolesAuthorizationFilter"/>
+	<bean id="anyPermissionsAuthorizationFilter" class="com.fantian.security.shiro.filters.AnyPermissionsAuthorizationFilter"/>
+	
+	<bean id="shiroRealm" class="com.fantian.security.shiro.ShiroRealm"/>
+	<bean id="shiroCacheManager" class="com.fantian.security.shiro.cache.ShiroCacheManager"/>
+	
+	<bean id="securityManager" class="org.apache.shiro.web.mgt.DefaultWebSecurityManager">
+		<property name="realm" ref="shiroRealm" />
+		<!-- <property name="sessionMode" value="native"/> -->
+		<property name="cacheManager" ref="shiroCacheManager"/>
+		<property name="sessionManager" ref="shiroSessionManager"/>
+		<property name="rememberMeManager.cookie.name" value="${rememberMeCookieName}"/>
+		<property name="rememberMeManager.cookie.domain" value="${domain}"/>
+		<property name="rememberMeManager.cookie.path" value="${path}"/>
+		<property name="rememberMeManager.cookie.maxAge" value="${rememberMeTime}"/> <!-- 7天有效期 -->
+		<!-- <property name="subjectDAO" ref="subjectDAO"/> -->
+	</bean>
+
+	
+	<bean id="sessionDAO" class="org.apache.shiro.session.mgt.eis.EnterpriseCacheSessionDAO">
+		<!-- <property name="sessionIdGenerator" ref="sessionIdGenerator"/> -->
+	</bean>
+	<!-- <bean id="subjectDAO" class="com.concom.security.infrastructure.shiro.cache.memcache.ShiroSubjectOperations"/> -->
+	<!-- <bean id="sessionIdGenerator" class="com.concom.security.infrastructure.shiro.ShiroSessionIdGenerator"/> -->
+
+	<bean id="shiroSessionManager" class="org.apache.shiro.web.session.mgt.DefaultWebSessionManager">
+		<property name="sessionDAO" ref="sessionDAO"/>
+		<!-- <property name="sessionValidationScheduler" ref="shiroSessionValidationScheduler"/> -->
+		<property name="sessionValidationInterval" value="1800000"/>  <!-- 相隔多久检查一次session的有效性 -->
+		<property name="globalSessionTimeout" value="1800000"/>  <!-- session 有效时间为半小时 （毫秒单位）-->
+		<property name="sessionIdCookie.domain" value="${domain}"/>
+		<property name="sessionIdCookie.name" value="${sessionIdCookieName}"/>
+		<property name="sessionIdCookie.path" value="${path}"/>
+		<!-- <property name="sessionListeners">
+			<list>
+				<bean class="com.concom.security.interfaces.listener.SessionListener"/>
+			</list>
+		</property> -->
+	</bean>
+	
+	<bean class="com.fantian.security.shiro.cache.repository.impl.LocalCacheOperations"/>
+	
+	
+	<!-- <bean id="shiroSessionValidationScheduler" class="org.apache.shiro.session.mgt.ExecutorServiceSessionValidationScheduler">
+		<constructor-arg name="sessionManager" ref="sessionManager"/>
+		<property name="interval" value="10000"/>  定时半小时检验一次有所session是否有效（毫秒单位）
+	</bean> -->
+	
+	
+	<bean class="org.springframework.beans.factory.config.MethodInvokingFactoryBean">
+		<property name="staticMethod" value="org.apache.shiro.SecurityUtils.setSecurityManager" />
+		<property name="arguments" ref="securityManager" />
+	</bean>
+	
+	<!-- <bean class="org.springframework.beans.factory.config.MethodInvokingFactoryBean">
+		<property name="staticMethod" value="com.concom.security.infrastructure.shiro.cache.memcache.ShiroMemcachedCache.setCache" />
+		<property name="arguments" ref="cache"/>
+	</bean> -->
+	
+	<bean class="org.springframework.beans.factory.config.MethodInvokingFactoryBean">
+		<property name="staticMethod" value="com.fantian.security.helper.ShiroAuthorizationHelper.setCacheManager" />
+		<property name="arguments" ref="shiroCacheManager"/>
+	</bean>
+	
+	<bean class="org.springframework.beans.factory.config.MethodInvokingFactoryBean">
+		<property name="staticMethod" value="com.fantian.security.helper.ShiroSecurityHelper.initStaticField" />
+		<property name="arguments">
+			<list>
+				<ref bean="currentUserCacheServiceImpl"/>
+				<ref bean="sessionDAO"/>
+			</list>
+		</property>
+	</bean>
+	
+	<bean id="springBeanHolder" class="com.fantian.security.helper.SpringBeanHolder"/>
+	
+	<bean id="securityServer" class="com.fantian.security.SecurityServer">
+		<property name="lockErrorCount" value="${lock.error.count}"/>
+		<property name="lockUserTime" value="${lock.user.time}"/>
+	</bean>
+	
+	<!-- Post processor that automatically invokes init() and destroy() methods -->
+	<bean id="lifecycleBeanPostProcessor" class="org.apache.shiro.spring.LifecycleBeanPostProcessor" />
+
+</beans>
